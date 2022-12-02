@@ -1,0 +1,7 @@
+%{
+  "elixir_math": {:hex, :elixir_math, "0.1.2", "5655bdf7f34e30906f31cdcf3031b43dd522ce8d2936b60ad4696b2c752bf5c9", [:mix], [], "hexpm", "34f4e4384903097a8ec566784fa8e9aa2b741247d225741f07cc48250c2aa64c"},
+  "exprintf": {:hex, :exprintf, "0.2.1", "b7e895dfb00520cfb7fc1671303b63b37dc3897c59be7cbf1ae62f766a8a0314", [:mix], [], "hexpm", "20a0e8c880be90e56a77fcc82533c5d60c643915c7ce0cc8aa1e06ed6001da28"},
+  "file_system": {:hex, :file_system, "0.2.10", "fb082005a9cd1711c05b5248710f8826b02d7d1784e7c3451f9c1231d4fc162d", [:mix], [], "hexpm", "41195edbfb562a593726eda3b3e8b103a309b733ad25f3d642ba49696bf715dc"},
+  "matrix": {:hex, :matrix, "0.3.2", "9c826bc3a1117bf5e1c5cdcf3a3d95456c93bc2e127a04e363e9fc90b724f784", [:mix], [{:exprintf, "~> 0.1", [hex: :exprintf, repo: "hexpm", optional: false]}], "hexpm", "f75adeb594a877ff49ff58a402e37c9474fb9172c997427a9b4b57ab10100f15"},
+  "mix_test_watch": {:hex, :mix_test_watch, "0.9.0", "c72132a6071261893518fa08e121e911c9358713f62794a90c95db59042af375", [:mix], [{:file_system, "~> 0.2.1 or ~> 0.3", [hex: :file_system, repo: "hexpm", optional: false]}], "hexpm", "817dec4a7f6edf260258002f99ac8ffaf7a8f395b27bf2d13ec24018beecec8a"},
+}
