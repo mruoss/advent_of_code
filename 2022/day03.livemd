@@ -1,0 +1,83 @@
+# Advent of Code 2022 - Day 3
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Input
+
+```elixir
+test_input =
+  """
+  vJrwpWtwJgWrhcsFMMfFFhFp
+  jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+  PmmdzqPrVvPwwTWBwg
+  wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+  ttgJtRGJQctTZtZT
+  CrZsJsPPZsGzwwsLwLmpwMDw
+  """
+  |> String.trim()
+```
+
+<!-- livebook:{"attrs":{"day":"3","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "3", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parsing
+
+```elixir
+parsed =
+  input_field
+  |> Kino.Input.read()
+  |> String.trim()
+  |> String.split("\n")
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+parsed
+|> Stream.map(&String.to_charlist/1)
+|> Stream.map(&Enum.split(&1, &1 |> length() |> div(2)))
+|> Stream.map(fn {left, right} -> Enum.find(left, &Enum.member?(right, &1)) end)
+|> Stream.map(fn
+  lower when lower in ?a..?z -> lower - ?a + 1
+  upper when upper in ?A..?Z -> upper - ?A + 27
+end)
+|> Enum.sum()
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+parsed
+|> Stream.map(&String.to_charlist/1)
+|> Stream.map(&Enum.uniq/1)
+|> Stream.chunk_every(3)
+|> Stream.map(fn group ->
+  group
+  |> Enum.map(&MapSet.new/1)
+  |> Enum.reduce(&MapSet.intersection(&2, &1))
+  |> MapSet.to_list()
+  |> hd()
+end)
+|> Stream.map(fn
+  lower when lower in ?a..?z -> lower - ?a + 1
+  upper when upper in ?A..?Z -> upper - ?A + 27
+end)
+|> Enum.sum()
+```
