@@ -7,13 +7,11 @@ Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
 ## Input
 
 ```elixir
-test_input =
-  """
-  A Y
-  B X
-  C Z
-  """
-  |> String.trim()
+test_input = """
+A Y
+B X
+C Z
+"""
 ```
 
 <!-- livebook:{"attrs":{"day":"2","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
@@ -36,7 +34,7 @@ input_field =
 parsed =
   input_field
   |> Kino.Input.read()
-  |> String.split("\n")
+  |> String.split("\n", trim: true)
 ```
 
 ## Part 1

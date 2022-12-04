@@ -7,16 +7,14 @@ Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
 ## Input
 
 ```elixir
-test_input =
-  """
-  vJrwpWtwJgWrhcsFMMfFFhFp
-  jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
-  PmmdzqPrVvPwwTWBwg
-  wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
-  ttgJtRGJQctTZtZT
-  CrZsJsPPZsGzwwsLwLmpwMDw
-  """
-  |> String.trim()
+test_input = """
+vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw
+"""
 ```
 
 <!-- livebook:{"attrs":{"day":"3","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
@@ -40,7 +38,7 @@ parsed =
   input_field
   |> Kino.Input.read()
   |> String.trim()
-  |> String.split("\n")
+  |> String.split("\n", trim: true)
 ```
 
 ## Part 1
