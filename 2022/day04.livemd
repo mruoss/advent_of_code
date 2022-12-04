@@ -1,0 +1,62 @@
+# Advent of Code 2022 - Day 4
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Input
+
+```elixir
+test_input =
+  """
+  2-4,6-8
+  2-3,4-5
+  5-7,7-9
+  2-8,3-7
+  6-6,4-6
+  2-6,4-8
+  """
+  |> String.trim()
+```
+
+<!-- livebook:{"attrs":{"day":"4","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "4", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parsing
+
+```elixir
+parsed =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.flat_map(&String.split(&1, ~r/[-,]/))
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.chunk_every(4)
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Enum.count(parsed, fn [ax, ay, bx, by] -> (ax <= bx and ay >= by) or (ax >= bx and ay <= by) end)
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Enum.count(parsed, fn [ax, ay, bx, by] -> bx <= ay and by >= ax end)
+```
