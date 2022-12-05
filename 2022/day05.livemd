@@ -1,0 +1,111 @@
+# Advent of Code 2022 - Day 5
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Input
+
+```elixir
+test_input = """
+    [D]    
+[N] [C]    
+[Z] [M] [P]
+ 1   2   3 
+
+move 1 from 2 to 1
+move 3 from 1 to 3
+move 2 from 2 to 1
+move 1 from 1 to 2
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"5","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "5", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parsing
+
+```elixir
+{start, instructions} =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.split_while(&(&1 != ""))
+```
+
+### Stacks
+
+```elixir
+stacks =
+  start
+  |> Enum.reverse()
+  |> tl()
+  |> Enum.flat_map(fn level ->
+    level
+    |> String.graphemes()
+    |> Enum.chunk_every(3, 4, :discard)
+    |> Enum.with_index(1)
+  end)
+  |> Enum.reduce(%{}, fn
+    {["[", crate, "]"], stack_nr}, acc -> Map.update(acc, stack_nr, [crate], &[crate | &1])
+    _, acc -> acc
+  end)
+```
+
+### Instructions
+
+```elixir
+instructions =
+  instructions
+  |> tl()
+  |> Enum.flat_map(&String.split(&1, ~r{[\D]}, trim: true))
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.chunk_every(3)
+```
+
+## Crane implementation
+
+```elixir
+defmodule CrateMover do
+  def operate(model, stacks, instructions) do
+    instructions
+    |> Enum.reduce(stacks, fn [amount, from, to], stacks ->
+      {crates, stacks} = pop_in(stacks, [from, Access.slice(0..(amount - 1))])
+      Map.update(stacks, to, crates, &place_crates_on_stack(model, crates, &1))
+    end)
+    |> Map.values()
+    |> Enum.map(&hd/1)
+    |> Enum.join()
+  end
+
+  defp place_crates_on_stack(:cm9000, crates, stack), do: Enum.reverse(crates) ++ stack
+  defp place_crates_on_stack(:cm9001, crates, stack), do: crates ++ stack
+end
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+CrateMover.operate(:cm9000, stacks, instructions)
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+CrateMover.operate(:cm9001, stacks, instructions)
+```
