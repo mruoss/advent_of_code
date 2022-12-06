@@ -1,0 +1,59 @@
+# Advent of Code 2022 - Day 6
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Input
+
+```elixir
+test_input = "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg"
+```
+
+<!-- livebook:{"attrs":{"day":"6","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "6", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parsing & Prep
+
+```elixir
+solve = fn input_field, chars ->
+  input_field
+  |> Kino.Input.read()
+  |> String.to_charlist()
+  |> Enum.chunk_every(chars, 1, :discard)
+  |> Enum.with_index(chars)
+  |> Enum.find(fn {seq, _} ->
+    seq
+    |> Enum.uniq()
+    |> Enum.count() == chars
+  end)
+  |> elem(1)
+end
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+solve.(input_field, 4)
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+solve.(input_field, 14)
+```
