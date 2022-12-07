@@ -1,0 +1,108 @@
+# Advent of Code 2022 - Day 7
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Input
+
+```elixir
+test_input = """
+$ cd /
+$ ls
+dir a
+14848514 b.txt
+8504156 c.dat
+dir d
+$ cd a
+$ ls
+dir e
+29116 f
+2557 g
+62596 h.lst
+$ cd e
+$ ls
+584 i
+$ cd ..
+$ cd ..
+$ cd d
+$ ls
+4060174 j
+8033020 d.log
+5626152 d.ext
+7214296 k
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"7","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "7", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+all_dir_sizes =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Stream.reject(&(&1 == "$ ls" || match?("dir " <> _, &1)))
+  |> Stream.transform(
+    # start_fun
+    fn -> [0] end,
+
+    # reducer
+    fn
+      "$ cd ..", [leaving_size, parent_size | size_stack] ->
+        {[leaving_size], [parent_size + leaving_size | size_stack]}
+
+      "$ cd " <> _, size_stack ->
+        {[], [0 | size_stack]}
+
+      file, [size | sizestack] ->
+        [filesize, _] = String.split(file, " ")
+        {[], [size + String.to_integer(filesize) | sizestack]}
+    end,
+
+    # last_fun
+    fn remainder ->
+      Enum.flat_map_reduce(remainder, remainder, fn
+        _, [size, dirsize | remainder] -> {[size], [dirsize + size | remainder]}
+        _, [_remainder] -> {[], nil}
+      end)
+    end,
+
+    # after_fun
+    &Function.identity/1
+  )
+  |> Enum.to_list()
+  |> Enum.reverse()
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+all_dir_sizes
+|> Enum.filter(&(&1 <= 100_000))
+|> Enum.sum()
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+disk_size_to_free_up = 30_000_000 + hd(all_dir_sizes) - 70_000_000
+all_dir_sizes |> Enum.filter(&(&1 >= disk_size_to_free_up)) |> Enum.min()
+```
