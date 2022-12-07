@@ -50,39 +50,63 @@ input_field =
 
 ## Parse & Prep
 
+### Approach
+
+We traverse the directory tree and keep track of directory sizes of the directory we are currently in and all their ancestors. This is represented by a stack of sizes where the size of the current directory is at the top of the stack and the ancestor's sizes below.
+
+If we are inside `/a/b/c`, the stack looks as follows:
+
+```
+|size_of_c|
+|size_of_b|
+|size_of_a|
+|size_of_/|
+```
+
+### Implementation
+
+We can ignore `$ ls` instructions and `dir x` listings so we reject them. Finally, since the in our input we end up in some directory deep, we concat our stream with `$ cd ..` instructions repeatedly. The stream will be halted by the transformer later. We then transform the remaining input stream to a stream of directory sizes as follows:
+
+#### `start`
+
+We begin our stack with an entry for the root directory (`/`) with size `0`:
+
+#### `reducer`
+
+For the remaining items in our input stream, here is what we do:
+
+* `$ cd DIR` - When entering a directory, we push a `0` on top of the stack.
+* `312412 filename` - When we see a filename listing, we add its size to the number on top of the stack, representing the size of the current directory.
+* `$ cd ..` - When leaving a directory, we pop the leaving directory's size from the stack, **emit it** and add it to the parent directory's size which is now on top of the stack (again).
+
+This transformation gives us a stream of directory sizes which we implicitely convert to a list in both parts later on.
+
 ```elixir
 all_dir_sizes =
   input_field
   |> Kino.Input.read()
   |> String.split("\n", trim: true)
   |> Stream.reject(&(&1 == "$ ls" || match?("dir " <> _, &1)))
+  |> Stream.concat(Stream.repeatedly(fn -> "$ cd .." end))
   |> Stream.transform(
     # start_fun
-    fn -> [0] end,
+    [0],
 
     # reducer
     fn
-      "$ cd ..", [leaving_size, parent_size | size_stack] ->
-        {[leaving_size], [parent_size + leaving_size | size_stack]}
+      "$ cd ..", [_last] ->
+        {:halt, nil}
 
-      "$ cd " <> _, size_stack ->
-        {[], [0 | size_stack]}
+      "$ cd ..", [leaving_size, parent_size | stack] ->
+        {[leaving_size], [parent_size + leaving_size | stack]}
 
-      file, [size | sizestack] ->
+      "$ cd " <> _, stack ->
+        {[], [0 | stack]}
+
+      file, [size | stack] ->
         [filesize, _] = String.split(file, " ")
-        {[], [size + String.to_integer(filesize) | sizestack]}
-    end,
-
-    # last_fun
-    fn remainder ->
-      Enum.flat_map_reduce(remainder, remainder, fn
-        _, [size, dirsize | remainder] -> {[size], [dirsize + size | remainder]}
-        _, [_remainder] -> {[], nil}
-      end)
-    end,
-
-    # after_fun
-    &Function.identity/1
+        {[], [size + String.to_integer(filesize) | stack]}
+    end
   )
   |> Enum.to_list()
   |> Enum.reverse()
