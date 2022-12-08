@@ -1,0 +1,114 @@
+# Advent of Code 2022 - Day 8
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Input
+
+```elixir
+test_input = """
+30373
+25512
+65332
+33549
+35390
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"8","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "8", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+parsed =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+width = length(parsed)
+height = String.length(hd(parsed))
+
+trees =
+  parsed
+  |> Enum.flat_map(&(&1 |> String.graphemes()))
+  |> Enum.map(&String.to_integer/1)
+  |> List.to_tuple()
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+run = fn acc, idx ->
+  for y <- 0..(height - 1),
+      x <- 0..(width - 1),
+      index <- [idx.(x, y)],
+      current_tree_height <- [elem(trees, index)],
+      reduce: {nil, acc} do
+    {local_highest_tree, visible_trees} when x == 0 or current_tree_height > local_highest_tree ->
+      {current_tree_height, Map.put(visible_trees, index, 1)}
+
+    acc ->
+      acc
+  end
+  |> elem(1)
+end
+
+%{}
+|> run.(&(&2 * width + &1))
+|> run.(&((&2 + 1) * width - (&1 + 1)))
+|> run.(&(&1 * width + &2))
+|> run.(&(height * width - (&1 * width + &2) - 1))
+|> Map.values()
+|> Enum.count()
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+run = fn acc, idx ->
+  for y <- 0..(height - 1),
+      x <- 0..(width - 1),
+      index <- [idx.(x, y)],
+      current_tree_height <- [elem(trees, index)],
+      reduce: {%{}, acc} do
+    {_, global_scores} when x == 0 ->
+      local_scores = for i <- 0..current_tree_height, reduce: %{}, do: (acc -> Map.put(acc, i, x))
+      {local_scores, global_scores}
+
+    {local_scores, global_scores} ->
+      local_score = x - Map.get(local_scores, current_tree_height, 0)
+
+      local_scores =
+        for i <- 0..current_tree_height, reduce: local_scores, do: (acc -> Map.put(acc, i, x))
+
+      global_scores = Map.update(global_scores, index, local_score, &(&1 * local_score))
+      {local_scores, global_scores}
+  end
+  |> elem(1)
+end
+
+%{}
+|> run.(&(&2 * width + &1))
+|> run.(&((&2 + 1) * width - (&1 + 1)))
+|> run.(&(&1 * width + &2))
+|> run.(&(height * width - (&1 * width + &2) - 1))
+|> Map.values()
+|> Enum.max()
+```
