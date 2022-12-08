@@ -65,9 +65,9 @@ If we are inside `/a/b/c`, the stack looks as follows:
 
 ### Implementation
 
-We can ignore `$ ls` instructions and `dir x` listings so we reject them. Finally, since the in our input we end up in some directory deep, we concat our stream with `$ cd ..` instructions repeatedly. The stream will be halted by the transformer later. We then transform the remaining input stream to a stream of directory sizes as follows:
+We can ignore `$ ls` instructions and `dir x` listings so we reject them. Finally, since after running our input we end up in some directory deep down the tree, we concatenate our stream with an infinite stream of `$ cd ..` instructions. The stream will be halted by the transformer later. We then transform the remaining input stream to a stream of directory sizes as follows:
 
-#### `start`
+#### `initial accumulator`
 
 We begin our stack with an entry for the root directory (`/`) with size `0`:
 
@@ -89,7 +89,7 @@ all_dir_sizes =
   |> Stream.reject(&(&1 == "$ ls" || match?("dir " <> _, &1)))
   |> Stream.concat(Stream.repeatedly(fn -> "$ cd .." end))
   |> Stream.transform(
-    # start_fun
+    # initial accumulator
     [0],
 
     # reducer
@@ -128,5 +128,7 @@ all_dir_sizes
 
 ```elixir
 disk_size_to_free_up = 30_000_000 + hd(all_dir_sizes) - 70_000_000
-all_dir_sizes |> Enum.filter(&(&1 >= disk_size_to_free_up)) |> Enum.min()
+all_dir_sizes 
+|> Enum.filter(&(&1 >= disk_size_to_free_up)) 
+|> Enum.min()
 ```
