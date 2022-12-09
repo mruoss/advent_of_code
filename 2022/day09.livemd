@@ -1,0 +1,128 @@
+# Advent of Code 2022 - Day 9
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}])
+```
+
+## Input
+
+```elixir
+test_input = """
+R 4
+U 4
+L 3
+D 1
+R 4
+D 1
+L 5
+R 2
+"""
+
+test_input_2 = """
+R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"9","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "9", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {test_input_2, "test_input_2"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+movements =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Stream.flat_map(fn <<dir::size(8), " ", nr::binary>> ->
+    Stream.duplicate(dir, String.to_integer(nr))
+  end)
+  |> Enum.map(fn
+    ?U -> {0, 1}
+    ?D -> {0, -1}
+    ?R -> {1, 0}
+    ?L -> {-1, 0}
+  end)
+```
+
+```elixir
+move_x = fn
+  {tx, ty}, {hx, _hy} when hx - tx < 0 -> {tx - 1, ty}
+  {tx, ty}, {hx, _hy} when hx - tx > 0 -> {tx + 1, ty}
+  {tx, ty}, _ -> {tx, ty}
+end
+
+move_y = fn
+  {tx, ty}, {_hx, hy} when hy - ty < 0 -> {tx, ty - 1}
+  {tx, ty}, {_hx, hy} when hy - ty > 0 -> {tx, ty + 1}
+  {tx, ty}, _ -> {tx, ty}
+end
+
+move = fn
+  {hx, hy}, {tx, ty} when abs(tx - hx) <= 1 and abs(ty - hy) <= 1 -> {tx, ty}
+  head, tail -> tail |> move_x.(head) |> move_y.(head)
+end
+```
+
+## Part 1
+
+```elixir
+movements
+|> Enum.reduce({MapSet.new([{0, 0}]), {0, 0}, {0, 0}}, fn
+  {mx, my}, {visited, {hx, hy}, tail} ->
+    new_head = {hx + mx, hy + my}
+    new_tail = move.(new_head, tail)
+    {MapSet.put(visited, new_tail), new_head, new_tail}
+end)
+|> elem(0)
+|> Enum.count()
+```
+
+## Part 2
+
+```elixir
+adjust = fn knots ->
+  Enum.reduce(knots, [], fn
+    head, [] ->
+      [head]
+
+    tail, [head | rest] ->
+      new_tail = move.(head, tail)
+      [new_tail, head | rest]
+  end)
+  |> Enum.reverse()
+end
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+start = Stream.duplicate({0, 0}, 10) |> Enum.to_list()
+
+movements
+|> Enum.reduce({MapSet.new([{0, 0}]), start}, fn
+  {mx, my}, {visited, [{hx, hy} | tail]} ->
+    new_knots = adjust.([{hx + mx, hy + my} | tail])
+    {MapSet.put(visited, List.last(new_knots)), new_knots}
+end)
+|> elem(0)
+|> Enum.count()
+```
