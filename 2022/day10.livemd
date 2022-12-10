@@ -1,0 +1,264 @@
+# Advent of Code 2022 - Day 10
+
+```elixir
+Mix.install([:kino, {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}, :kino_vega_lite])
+```
+
+## Input
+
+```elixir
+test_input = """
+noop
+addx 3
+addx -5
+"""
+
+test_input_2 = """
+addx 15
+addx -11
+addx 6
+addx -3
+addx 5
+addx -1
+addx -8
+addx 13
+addx 4
+noop
+addx -1
+addx 5
+addx -1
+addx 5
+addx -1
+addx 5
+addx -1
+addx 5
+addx -1
+addx -35
+addx 1
+addx 24
+addx -19
+addx 1
+addx 16
+addx -11
+noop
+noop
+addx 21
+addx -15
+noop
+noop
+addx -3
+addx 9
+addx 1
+addx -3
+addx 8
+addx 1
+addx 5
+noop
+noop
+noop
+noop
+noop
+addx -36
+noop
+addx 1
+addx 7
+noop
+noop
+noop
+addx 2
+addx 6
+noop
+noop
+noop
+noop
+noop
+addx 1
+noop
+noop
+addx 7
+addx 1
+noop
+addx -13
+addx 13
+addx 7
+noop
+addx 1
+addx -33
+noop
+noop
+noop
+addx 2
+noop
+noop
+noop
+addx 8
+noop
+addx -1
+addx 2
+addx 1
+noop
+addx 17
+addx -9
+addx 1
+addx 1
+addx -3
+addx 11
+noop
+noop
+addx 1
+noop
+addx 1
+noop
+noop
+addx -13
+addx -19
+addx 1
+addx 3
+addx 26
+addx -30
+addx 12
+addx -1
+addx 3
+addx 1
+noop
+noop
+noop
+addx -9
+addx 18
+addx 1
+addx 2
+noop
+noop
+addx 9
+noop
+noop
+noop
+addx -1
+addx 2
+addx -37
+addx 1
+addx 3
+noop
+addx 15
+addx -21
+addx 22
+addx -6
+addx 1
+noop
+addx 2
+addx 1
+noop
+addx -10
+noop
+noop
+addx 20
+addx 1
+addx 2
+addx 2
+addx -6
+addx -11
+noop
+noop
+noop
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"10","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "10", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {test_input_2, "test_input_2"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+parsed =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.flat_map(fn
+    "noop" -> [nil]
+    "addx " <> nr -> [nil, String.to_integer(nr)]
+  end)
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+{batch_20, rest} = Enum.split(parsed, 19)
+
+[batch_20 | Enum.chunk_every(rest, 40)]
+|> Enum.scan(1, fn el, acc ->
+  sum =
+    el
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sum()
+
+  sum + acc
+end)
+|> Enum.zip_with(20..220//40, &(&1 * &2))
+|> Enum.sum()
+```
+
+## Part 2
+
+### Textual Representation
+
+```elixir
+raw =
+  parsed
+  |> Enum.with_index()
+  |> Enum.map_reduce(1, fn
+    {op, cycle}, x ->
+      pos = rem(cycle, 40)
+      pixel = if x in (pos - 1)..(pos + 1), do: "#", else: "."
+      new_x = if is_nil(op), do: x, else: x + op
+      {pixel, new_x}
+  end)
+  |> elem(0)
+  |> Enum.chunk_every(40)
+  |> Enum.intersperse("\n")
+  |> IO.iodata_to_binary()
+  |> IO.puts()
+```
+
+### VegaLite Chart
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+chart =
+  VegaLite.new(width: 800, height: 100)
+  |> VegaLite.mark(:square)
+  |> VegaLite.encode_field(:x, "pos", type: :quantitative)
+  |> VegaLite.encode_field(:y, "row", type: :quantitative)
+  |> VegaLite.encode_field(:size, "size", type: :nominal)
+  |> Kino.VegaLite.new()
+  |> Kino.render()
+
+parsed
+|> Enum.with_index()
+|> Enum.reduce(1, fn
+  {op, cycle}, x ->
+    row = div(cycle, 40)
+    pos = rem(cycle, 40)
+
+    if x in (pos - 1)..(pos + 1) do
+      point = %{pos: pos, row: 5 - row, size: 10}
+      Kino.VegaLite.push(chart, point)
+    end
+
+    if is_nil(op), do: x, else: x + op
+end)
+```
