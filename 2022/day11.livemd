@@ -1,0 +1,159 @@
+# Advent of Code 2022 - Day 11
+
+```elixir
+Mix.install([
+  :math,
+  :kino,
+  {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"},
+  :kino_vega_lite
+])
+```
+
+## Input
+
+```elixir
+test_input = """
+Monkey 0:
+  Starting items: 79, 98
+  Operation: new = old * 19
+  Test: divisible by 23
+    If true: throw to monkey 2
+    If false: throw to monkey 3
+
+Monkey 1:
+  Starting items: 54, 65, 75, 74
+  Operation: new = old + 6
+  Test: divisible by 19
+    If true: throw to monkey 2
+    If false: throw to monkey 0
+
+Monkey 2:
+  Starting items: 79, 60, 97
+  Operation: new = old * old
+  Test: divisible by 13
+    If true: throw to monkey 1
+    If false: throw to monkey 3
+
+Monkey 3:
+  Starting items: 74
+  Operation: new = old + 3
+  Test: divisible by 17
+    If true: throw to monkey 0
+    If false: throw to monkey 1
+"""
+```
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "11", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+input_field
+|> Kino.Input.read()
+|> String.split(~r/\n?Monkey.*/, trim: true)
+|> Enum.map(&String.split(&1, "\n", trim: true))
+```
+
+```elixir
+parsed =
+  input_field
+  |> Kino.Input.read()
+  |> String.split(~r/\n?Monkey.*/, trim: true)
+  |> Enum.map(&String.split(&1, "\n", trim: true))
+  |> Enum.map(fn [
+                   "  Starting items: " <> items,
+                   "  Operation: new = " <> op,
+                   "  Test: divisible by " <> divisor,
+                   "    If true: throw to monkey " <> true_next_monkey,
+                   "    If false: throw to monkey " <> false_next_monkey
+                 ] ->
+    divisor = String.to_integer(divisor)
+
+    {
+      items |> String.split([" ", ","], trim: true) |> Enum.map(&String.to_integer/1),
+      %{
+        next_level_1: "div(#{op}, 3)",
+        next_level_2: "rem(#{op}, lcm)",
+        divisor: divisor,
+        next_monkey:
+          "if rem(next_level, #{divisor}) == 0, do: #{true_next_monkey}, else: #{false_next_monkey}"
+      }
+    }
+  end)
+
+{start_levels, behaviours} = Enum.unzip(parsed)
+num_monkeys = Enum.count(start_levels)
+```
+
+## Part 1
+
+```elixir
+monkey_behaviours = List.to_tuple(behaviours)
+
+0..(num_monkeys - 1)
+|> Stream.cycle()
+|> Stream.take(20 * num_monkeys)
+|> Stream.transform(List.to_tuple(start_levels), fn
+  monkey, acc ->
+    %{next_level_1: next_level_op, next_monkey: next_monkey_op} = elem(monkey_behaviours, monkey)
+    items = elem(acc, monkey)
+
+    acc =
+      items
+      |> Enum.reduce(acc, fn
+        level, acc ->
+          {next_level, _} = Code.eval_string(next_level_op, old: level)
+          {next_monkey, _} = Code.eval_string(next_monkey_op, next_level: next_level)
+          update_in(acc, [Access.elem(next_monkey)], &[next_level | &1])
+      end)
+
+    {List.duplicate(monkey, Enum.count(items)), put_elem(acc, monkey, [])}
+end)
+|> Enum.frequencies()
+|> Map.values()
+|> Enum.sort(:desc)
+|> then(fn [first, second | _] -> first * second end)
+```
+
+## Part 2
+
+Not very efficient. But dividing by the LCM makes it terminate under a minute. So I'm gonna take that. Code is almost the same as above, but not exactly. Didn't bother cleaning up this time...
+
+```elixir
+lcm = Enum.reduce(behaviours, 1, &Math.lcm(&1.divisor, &2))
+monkey_behaviours = List.to_tuple(behaviours)
+
+0..(num_monkeys - 1)
+|> Stream.cycle()
+|> Stream.take(10_000 * num_monkeys)
+|> Stream.transform(List.to_tuple(start_levels), fn
+  monkey, acc ->
+    %{next_level_2: next_level_op, next_monkey: next_monkey_op} = elem(monkey_behaviours, monkey)
+    items = elem(acc, monkey)
+
+    acc =
+      items
+      |> Enum.reduce(acc, fn
+        level, acc ->
+          {next_level, _} = Code.eval_string(next_level_op, old: level, lcm: lcm)
+          {next_monkey, _} = Code.eval_string(next_monkey_op, next_level: next_level)
+          update_in(acc, [Access.elem(next_monkey)], &[next_level | &1])
+      end)
+
+    {List.duplicate(monkey, Enum.count(items)), put_elem(acc, monkey, [])}
+end)
+|> Enum.frequencies()
+|> Map.values()
+|> Enum.sort(:desc)
+|> then(fn [first, second | _] -> first * second end)
+```
