@@ -1,0 +1,138 @@
+# Advent of Code 2022 - Day 12
+
+```elixir
+Mix.install([
+  :kino,
+  {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"},
+  :kino_vega_lite
+])
+```
+
+## Input
+
+```elixir
+test_input = """
+Sabqponm
+abcryxxl
+accszExk
+acctuvwj
+abdefghi
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"12","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "12", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+parsed =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.with_index()
+  |> Enum.flat_map(fn {row, y} ->
+    row
+    |> String.to_charlist()
+    |> Enum.with_index()
+    |> Enum.map(fn {elevation, x} -> {{x, y}, elevation} end)
+  end)
+
+start = Enum.find(parsed, &(elem(&1, 1) == ?S)) |> elem(0)
+target = Enum.find(parsed, &(elem(&1, 1) == ?E)) |> elem(0)
+
+elevation_map =
+  Enum.into(parsed, %{})
+  |> Map.put(start, ?a - 1)
+  |> Map.put(target, ?z)
+```
+
+### Approach
+
+Breadth-first search of the shortest path towards the goal. The `Wanderer.walk/4` function takes two callback functions. `valid_step?` is passed the last and current elevations and should return true if the next position is a valid according to the rules of the puzzle. `done?` is passed the current position and elevation and should return `true` if we have found our target.
+
+```elixir
+defmodule Wanderer do
+  def walk(paths, elevation_map, valid_step?, done?) do
+    next_paths =
+      for [{cur_x, cur_y} | path] <- paths,
+          next_pos <- [
+            {cur_x - 1, cur_y},
+            {cur_x + 1, cur_y},
+            {cur_x, cur_y - 1},
+            {cur_x, cur_y + 1}
+          ],
+          not Enum.member?(path, next_pos),
+          current_elevation = Map.get(elevation_map, {cur_x, cur_y}),
+          elevation = Map.get(elevation_map, next_pos),
+          valid_step?.(elevation, current_elevation) do
+        if done?.(next_pos, elevation) do
+          {:done, Enum.count(path) + 1}
+        else
+          [next_pos, {cur_x, cur_y} | path]
+        end
+      end
+
+    final_path = Enum.find(next_paths, &match?({:done, _}, &1))
+
+    if final_path do
+      elem(final_path, 1)
+    else
+      next_paths
+      # Performance optimitaion:
+      # all paths are of the same length. So if 2 of them end up at the same (intermediate) 
+      # point, there's no point in following up with both of them. They are equivalent for 
+      #  our calculation.
+      |> Enum.uniq_by(&hd(&1))
+      |> walk(elevation_map, valid_step?, done?)
+    end
+  end
+end
+```
+
+## Part 1
+
+Walk the map.
+
+* `valid_step?` returns `true` if the next elevation is max 1 higher than the current elevation.
+* `done?` returns true if the current position is the target position
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Wanderer.walk(
+  [[start]],
+  elevation_map,
+  &(&1 <= &2 + 1),
+  fn next_pos, _ -> next_pos == target end
+)
+```
+
+## Part 2
+
+Walk the map.
+
+* `valid_step?` returns `true` if the next elevation is min 1 lower than the current elevation.
+* `done?` returns true if the current elevation is `a`
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Wanderer.walk(
+  [[target]],
+  elevation_map,
+  &(&1 >= &2 - 1),
+  fn _, elevation -> elevation == ?a end
+)
+```
