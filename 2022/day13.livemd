@@ -59,29 +59,27 @@ parsed =
   input_field
   |> Kino.Input.read()
   |> String.split("\n", trim: true)
-  |> Enum.map(&Code.eval_string/1)
-  |> Enum.map(&elem(&1, 0))
-  |> Enum.chunk_every(2)
+  |> Enum.map(&Jason.decode!/1)
 ```
 
 ```elixir
 defmodule Decoder do
-  def compare([], []), do: :none
-  def compare([_ | _], []), do: false
-  def compare([], [_ | _]), do: true
+  def compare([], []), do: :eq
+  def compare([_ | _], []), do: :gt
+  def compare([], [_ | _]), do: :lt
 
   def compare([a | resta], [b | restb]) do
     case compare(a, b) do
-      :none -> compare(resta, restb)
+      :eq -> compare(resta, restb)
       other -> other
     end
   end
 
   def compare(a, b) when is_integer(a) and is_integer(b) do
     cond do
-      a < b -> true
-      a > b -> false
-      true -> :none
+      a < b -> :lt
+      a > b -> :gt
+      true -> :eq
     end
   end
 
@@ -95,9 +93,10 @@ end
 
 ```elixir
 parsed
+|> Enum.chunk_every(2)
 |> Enum.map(fn [a, b] -> Decoder.compare(a, b) end)
 |> Enum.with_index(1)
-|> Enum.filter(&(elem(&1, 0) == true))
+|> Enum.filter(&(elem(&1, 0) == :lt))
 |> Enum.map(&elem(&1, 1))
 |> Enum.sum()
 ```
@@ -108,9 +107,8 @@ parsed
 
 ```elixir
 sorted =
-  [[[[2]], [[6]]] | parsed]
-  |> Enum.flat_map(&Function.identity/1)
-  |> Enum.sort(&Decoder.compare/2)
+  [[[2]], [[6]] | parsed]
+  |> Enum.sort(Decoder)
 
 divider_packet_1 = Enum.find_index(sorted, &(&1 == [[2]])) + 1
 divider_packet_2 = Enum.find_index(sorted, &(&1 == [[6]])) + 1
