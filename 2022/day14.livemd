@@ -1,0 +1,133 @@
+# Advent of Code 2022 - Day 14
+
+```elixir
+Mix.install([
+  :kino,
+  {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}
+])
+```
+
+## Input
+
+```elixir
+test_input = """
+498,4 -> 498,6 -> 496,6
+503,4 -> 502,4 -> 502,9 -> 494,9
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"14","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "14", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+lines =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.flat_map(fn path ->
+    path
+    |> String.split(["-", ">", ",", " "], trim: true)
+    |> Enum.map(&String.to_integer/1)
+    |> Enum.chunk_every(4, 2, :discard)
+  end)
+  |> Enum.uniq()
+
+columns =
+  for(
+    [startx, starty, endx, endy] <- lines,
+    x <- startx..endx,
+    y <- starty..endy,
+    reduce: %{},
+    do: (acc -> Map.update(acc, x, [y], &[y | &1]))
+  )
+  |> Map.new(fn {x, y} ->
+    {x, y |> Enum.sort() |> Enum.uniq()}
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Simulator do
+  def fall(columns, floor, x, y) do
+    col = Map.get(columns, x)
+    {lower, higher} = Enum.split_while(List.wrap(col), &(&1 < y))
+
+    cond do
+      higher == [] and floor -> Map.put(columns, x, lower ++ [floor])
+      higher == [] -> :halt
+      true -> do_fall(columns, floor, lower, higher, x, y)
+    end
+  end
+
+  defp do_fall(columns, floor, lower, [next_y | higher], x, y) do
+    case max(y, next_y) do
+      ^y ->
+        :nope
+
+      new_y ->
+        left = fall(columns, floor, x - 1, new_y)
+        right = fall(columns, floor, x + 1, new_y)
+
+        cond do
+          left == :nope and right == :nope ->
+            Map.put(columns, x, lower ++ [new_y - 1, next_y | higher])
+
+          left == :nope ->
+            right
+
+          true ->
+            left
+        end
+    end
+  end
+end
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Stream.unfold(0, fn x -> {x, x + 1} end)
+|> Enum.reduce_while(columns, fn
+  x, acc ->
+    case Simulator.fall(acc, nil, 500, 0) do
+      :halt -> {:halt, x}
+      next_acc -> {:cont, next_acc}
+    end
+end)
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+floor =
+  columns
+  |> Map.values()
+  |> List.flatten()
+  |> Enum.max()
+  |> then(&Kernel.+(&1, 1))
+
+Stream.unfold(0, fn x -> {x, x + 1} end)
+|> Enum.reduce_while(columns, fn
+  x, acc ->
+    case Simulator.fall(acc, floor, 500, 0) do
+      :nope -> {:halt, x}
+      next_acc -> {:cont, next_acc}
+    end
+end)
+```
