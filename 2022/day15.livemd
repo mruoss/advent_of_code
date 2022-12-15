@@ -1,0 +1,104 @@
+# Advent of Code 2022 - Day 15
+
+```elixir
+Mix.install([
+  :kino,
+  {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}
+])
+```
+
+## Input
+
+```elixir
+test_input = """
+Sensor at x=2, y=18: closest beacon is at x=-2, y=15
+Sensor at x=9, y=16: closest beacon is at x=10, y=16
+Sensor at x=13, y=2: closest beacon is at x=15, y=3
+Sensor at x=12, y=14: closest beacon is at x=10, y=16
+Sensor at x=10, y=20: closest beacon is at x=10, y=16
+Sensor at x=14, y=17: closest beacon is at x=10, y=16
+Sensor at x=8, y=7: closest beacon is at x=2, y=10
+Sensor at x=2, y=0: closest beacon is at x=2, y=10
+Sensor at x=0, y=11: closest beacon is at x=2, y=10
+Sensor at x=20, y=14: closest beacon is at x=25, y=17
+Sensor at x=17, y=20: closest beacon is at x=21, y=22
+Sensor at x=16, y=7: closest beacon is at x=15, y=3
+Sensor at x=14, y=3: closest beacon is at x=15, y=3
+Sensor at x=20, y=1: closest beacon is at x=15, y=3
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"15","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "15", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {{10, 20, test_input}, "test_input"},
+    {{2_000_000, 4_000_000, puzzle_input}, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+{desty, boundary, input} = Kino.Input.read(input_field)
+
+lines =
+  input
+  |> String.split(~r/[^\d-]/, trim: true)
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.chunk_every(4)
+```
+
+```elixir
+beacons_at = fn y ->
+  Enum.flat_map(lines, fn
+    [_, _, bx, ^y] -> [bx]
+    _ -> []
+  end)
+  |> Enum.uniq()
+  |> Enum.count()
+end
+```
+
+## Part 1
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+row_coverage = fn lines, row ->
+  lines
+  |> Enum.map(fn [sx, sy, bx, by] -> {sx, sy, abs(bx - sx) + abs(by - sy) - abs(sy - row)} end)
+  |> Enum.filter(&(elem(&1, 2) > 0))
+  |> Enum.map(fn {sx, _sy, dist} -> (sx - dist)..(sx + dist) end)
+  |> Enum.sort()
+  |> Enum.flat_map_reduce(nil, fn
+    span, nil -> {[], span}
+    span, last_span when span.first > last_span.last + 1 -> {[last_span], span}
+    span, last_span -> {[], min(last_span.first, span.first)..max(last_span.last, span.last)}
+  end)
+end
+
+(row_coverage.(lines, desty)
+ |> elem(1)
+ |> Range.size()) - beacons_at.(desty)
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+{row, {ranges, remainder}} =
+  0..boundary
+  |> Stream.map(&{&1, row_coverage.(lines, &1)})
+  |> Enum.find(&match?({_, {[_ | _], _}}, &1))
+  |> IO.inspect()
+
+[_..x, _.._] = Enum.sort([remainder | ranges])
+(x + 1) * 4_000_000 + row
+```
