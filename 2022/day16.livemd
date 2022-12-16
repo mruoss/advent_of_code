@@ -1,0 +1,229 @@
+# Advent of Code 2022 - Day 16
+
+```elixir
+Mix.install([
+  :kino,
+  {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}
+])
+```
+
+## Input
+
+```elixir
+test_input = """
+Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
+Valve BB has flow rate=13; tunnels lead to valves CC, AA
+Valve CC has flow rate=2; tunnels lead to valves DD, BB
+Valve DD has flow rate=20; tunnels lead to valves CC, AA, EE
+Valve EE has flow rate=3; tunnels lead to valves FF, DD
+Valve FF has flow rate=0; tunnels lead to valves EE, GG
+Valve GG has flow rate=0; tunnels lead to valves FF, HH
+Valve HH has flow rate=22; tunnel leads to valve GG
+Valve II has flow rate=0; tunnels lead to valves AA, JJ
+Valve JJ has flow rate=21; tunnel leads to valve II
+"""
+```
+
+<!-- livebook:{"attrs":{"day":"16","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "16", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+network =
+  input_field
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    [<<"Valve ", valve::binary-size(2), " has flow rate=", rate::binary>>, tunnels] =
+      String.split(line, ";", trim: true)
+
+    tunnels =
+      tunnels
+      |> String.split([" ", ","], trim: true)
+      |> Enum.drop(4)
+
+    {valve, {String.to_integer(rate), tunnels}}
+  end)
+  |> Map.new()
+```
+
+## Part 1
+
+```elixir
+defmodule State do
+  defstruct [:position, :pressure, :open_valves, history: []]
+end
+```
+
+```elixir
+defmodule Traveller1 do
+  def travel(_, 0, states) do
+    states
+    |> Enum.max_by(& &1.pressure)
+  end
+
+  def travel(network, time_left, states) do
+    # IO.inspect(time_left)
+
+    next_states =
+      Enum.flat_map(states, fn state ->
+        {rate, next_positions} = Map.fetch!(network, state.position)
+
+        next_states =
+          Enum.map(next_positions, fn next_position ->
+            struct!(state,
+              position: next_position
+            )
+          end)
+
+        if rate > 0 and state.position not in state.open_valves do
+          new_pressure = state.pressure + rate * (time_left - 1)
+
+          [
+            struct!(state,
+              open_valves: [state.position | state.open_valves],
+              pressure: new_pressure
+            )
+            | next_states
+          ]
+        else
+          next_states
+        end
+      end)
+
+    next_states = Enum.uniq_by(next_states, &{&1.position, &1.pressure})
+
+    travel(network, time_left - 1, next_states)
+  end
+end
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Traveller1.travel(network, 30, [struct!(State, position: "AA", pressure: 0, open_valves: [])])
+|> Map.get(:pressure)
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule State2 do
+  defstruct [:position, :elephant_position, :pressure, :open_valves, history: []]
+end
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Traveller2 do
+  def travel(_, 0, states) do
+    states
+    |> Enum.max_by(& &1.pressure)
+  end
+
+  def travel(network, time_left, states) do
+    next_states =
+      Enum.flat_map(states, fn state ->
+        {rate, next_positions} = Map.fetch!(network, state.position)
+        {elephant_rate, next_elephant_positions} = Map.fetch!(network, state.elephant_position)
+
+        # both move
+        next_states =
+          for next_position <- next_positions,
+              next_elephant_position <- next_elephant_positions,
+              next_position != next_elephant_position do
+            struct!(state,
+              position: next_position,
+              elephant_position: next_elephant_position
+            )
+          end
+
+        # I move
+        next_states =
+          if elephant_rate > 0 and state.elephant_position not in state.open_valves do
+            new_pressure = state.pressure + elephant_rate * (time_left - 1)
+
+            for position <- next_positions, reduce: next_states do
+              next_states ->
+                [
+                  struct!(state,
+                    open_valves: [state.elephant_position | state.open_valves],
+                    position: position,
+                    pressure: new_pressure
+                  )
+                  | next_states
+                ]
+            end
+          else
+            next_states
+          end
+
+        # Elephant moves
+        next_states =
+          if rate > 0 and state.position not in state.open_valves do
+            new_pressure = state.pressure + rate * (time_left - 1)
+
+            for next_elephant_position <- next_elephant_positions, reduce: next_states do
+              next_states ->
+                [
+                  struct!(state,
+                    open_valves: [state.position | state.open_valves],
+                    pressure: new_pressure,
+                    elephant_position: next_elephant_position
+                  )
+                  | next_states
+                ]
+            end
+          else
+            next_states
+          end
+
+        # noone moves
+        new_pressure = state.pressure + (rate + elephant_rate) * (time_left - 1)
+
+        if rate > 0 and state.position not in state.open_valves and elephant_rate > 0 and
+             state.elephant_position not in state.open_valves and
+             state.position <> state.elephant_position do
+          [
+            struct!(state,
+              open_valves: [state.position, state.elephant_position | state.open_valves],
+              pressure: new_pressure
+            )
+            | next_states
+          ]
+        else
+          next_states
+        end
+      end)
+
+    next_states =
+      Enum.uniq_by(next_states, &{Enum.sort([&1.position, &1.elephant_position]), &1.pressure})
+
+    travel(network, time_left - 1, next_states)
+  end
+end
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Traveller2.travel(network, 26, [
+  struct!(State2, position: "AA", elephant_position: "AA", pressure: 0, open_valves: [])
+])
+|> Map.get(:pressure)
+```
