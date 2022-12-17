@@ -1,0 +1,213 @@
+# Advent of Code 2022 - Day 17
+
+```elixir
+Mix.install([
+  :kino,
+  {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}
+])
+```
+
+## Input
+
+```elixir
+test_input = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
+```
+
+<!-- livebook:{"attrs":{"day":"17","session_secret":"AOC_SESSION","variable":"puzzle_input","year":"2022"},"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} = KinoAOC.download_puzzle("2022", "17", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input, "test_input"},
+    {puzzle_input, "puzzle_input"}
+  ])
+```
+
+## Parse & Prep
+
+```elixir
+jets =
+  input_field
+  |> Kino.Input.read()
+  |> String.trim()
+  |> String.to_charlist()
+
+rocks = [
+  [{2, 3}, {3, 3}, {4, 3}, {5, 3}],
+  [{3, 3}, {2, 4}, {3, 4}, {4, 4}, {3, 5}],
+  [{2, 3}, {3, 3}, {4, 3}, {4, 4}, {4, 5}],
+  [{2, 3}, {2, 4}, {2, 5}, {2, 6}],
+  [{2, 3}, {3, 3}, {2, 4}, {3, 4}]
+]
+```
+
+```elixir
+
+```
+
+```elixir
+defmodule Tetris do
+  # defguardp is_in_wall?(board, x, y)
+  #          when is_map_key(board, {x, y}) or x not in 0..6
+
+  def is_in_wall?(board, x, y) do
+    {x, y} in board or x not in 0..6
+  end
+
+  # defguardp is_collision?(board, x, y)
+  #          when is_map_key(board, {x, y}) or y < 0
+
+  def is_collision?(board, x, y) do
+    {x, y} in board or y < 0
+  end
+
+  def next_x(x, ?>), do: x + 1
+  def next_x(x, ?<), do: x - 1
+
+  def draw(particles) do
+    {miny, maxy} =
+      particles
+      |> Enum.map(&elem(&1, 1))
+      |> Enum.min_max()
+
+    for y <- maxy..miny, x <- 0..6 do
+      if {x, y} in particles, do: IO.write("#"), else: IO.write(".")
+      if x == 6, do: IO.write("\n")
+    end
+  end
+
+  def move_up(rock, nr) do
+    Enum.map(rock, fn {x, y} -> {x, y + nr} end)
+  end
+
+  def move(rock, board, jet) do
+    rock
+    |> move_horiz(board, jet)
+    |> move_down(board)
+  end
+
+  def move_horiz(rock, board, jet) do
+    moved_rock =
+      rock
+      |> Enum.map(fn {x, y} -> {next_x(x, jet), y} end)
+      |> Enum.reduce_while([], fn
+        {x, y}, moved_rock ->
+          if is_in_wall?(board, x, y),
+            do: {:halt, nil},
+            else: {:cont, [{x, y} | moved_rock]}
+      end)
+
+    moved_rock || rock
+  end
+
+  defp move_down(rock, board) do
+    rock
+    |> Enum.map(fn {x, y} -> {x, y - 1} end)
+    |> Enum.reduce_while([], fn
+      {x, y}, moved_rock ->
+        if is_collision?(board, x, y),
+          do: {:halt, {:stop, rock}},
+          else: {:cont, [{x, y} | moved_rock]}
+    end)
+  end
+
+  def play(jets, rocks, nr_rocks) do
+    jets
+    |> Stream.with_index()
+    |> Stream.cycle()
+    |> Enum.reduce_while({hd(rocks), MapSet.new(), 1, -1, []}, fn
+      {_, idx}, {_, board, ^nr_rocks, maxy, history} ->
+        # draw(board)
+        {:halt, {maxy + 1, board, idx, history}}
+
+      {jet, jet_idx}, {rock, board, rock_counter, max_y, history} ->
+        case move(rock, board, jet) do
+          {:stop, rock} ->
+            max_rock_y = rock |> Enum.map(&elem(&1, 1)) |> Enum.max()
+            top = max(max_y, max_rock_y)
+            new_board = MapSet.union(board, MapSet.new(rock))
+            rock_idx = rem(rock_counter, 5)
+
+            next_rock =
+              rocks
+              |> Enum.at(rock_idx)
+              |> move_up(top + 1)
+
+            {:cont,
+             {next_rock, new_board, rock_counter + 1, top, [{rock_idx, jet_idx} | history]}}
+
+          moved_rock ->
+            {:cont, {moved_rock, board, rock_counter, max_y, history}}
+        end
+    end)
+  end
+end
+```
+
+## Part 1
+
+```elixir
+result = Tetris.play(jets, rocks, 2023)
+elem(result, 0) |> IO.inspect(label: "result")
+```
+
+## Part 2
+
+```elixir
+history = Tetris.play(jets, rocks, 10000) |> elem(3)
+
+pattern =
+  Enum.reduce_while(history, [], fn
+    entry, [] ->
+      {:cont, [entry]}
+
+    entry, list ->
+      case history |> Enum.chunk_every(length(list)) do
+        [a, a, a | _] ->
+          {:halt, a}
+
+        _ ->
+          {:cont, [entry | list]}
+      end
+  end)
+
+full_list =
+  Enum.reduce_while(history, history, fn
+    _, [_ | list] = full_list ->
+      case list |> Enum.chunk_every(length(pattern)) do
+        [a, a | _] ->
+          {:cont, list}
+
+        _ ->
+          {:halt, full_list}
+      end
+  end)
+
+[block | rest] = Enum.chunk_every(full_list, length(pattern))
+first = List.last(rest)
+```
+
+```elixir
+{block_length, first_length} = {length(block), length(first)}
+first_length = first_length + 1
+
+height_first = Tetris.play(jets, rocks, first_length + 1) |> elem(0)
+
+height_block =
+  (Tetris.play(jets, rocks, block_length + first_length + 1) |> elem(0)) - height_first
+
+rocks_after_rest = 1_000_000_000_000 - first_length
+whole_blocks = div(rocks_after_rest, block_length)
+remaining_rocks = rem(rocks_after_rest, block_length)
+
+height_remaining =
+  (Tetris.play(jets, rocks, first_length + remaining_rocks + 1) |> elem(0)) - height_first
+
+height_block * whole_blocks + height_remaining
+
+whole_blocks * height_block + height_remaining + height_first
+```
