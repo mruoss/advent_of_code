@@ -1,0 +1,116 @@
+# Advent of Code 2023 - Day 01
+
+```elixir
+Mix.install([
+  :kino,
+  {:kino_aoc, git: "https://github.com/ljgago/kino_aoc"}
+])
+```
+
+## Input
+
+<!-- livebook:{"attrs":{"assign_to":"puzzle_input","day":"1","session_secret":"AOC_SESSION","year":"2023"},"chunks":null,"kind":"Elixir.KinoAOC.HelperCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{:ok, puzzle_input} =
+  KinoAOC.download_puzzle("2023", "1", System.fetch_env!("LB_AOC_SESSION"))
+```
+
+## Part 1
+
+```elixir
+test_input_part1 = """
+1abc2
+pqr3stu8vwx
+a1b2c3d4e5f
+treb7uchet
+"""
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input_part1, "Test Input"},
+    {puzzle_input, "Puzzle Input"}
+  ])
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+input_field
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.map(&String.replace(&1, ~r/[^\d]/, ""))
+|> Enum.map(&(String.at(&1, 0) <> String.at(&1, -1)))
+|> Enum.map(&String.to_integer/1)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+test_input_part2 = """
+two1nine
+eightwothree
+abcone2threexyz
+xtwone3four
+4nineeightseven2
+zoneight234
+7pqrstsixteen
+"""
+```
+
+```elixir
+input_field =
+  Kino.Input.select("input", [
+    {test_input_part2, "Test Input"},
+    {puzzle_input, "Puzzle Input"}
+  ])
+```
+
+```elixir
+defmodule Task2 do
+  @digits %{
+    "one" => 1,
+    "two" => 2,
+    "three" => 3,
+    "four" => 4,
+    "five" => 5,
+    "six" => 6,
+    "seven" => 7,
+    "eight" => 8,
+    "nine" => 9
+  }
+
+  def solve(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(&convert_line/1)
+    |> Enum.sum()
+  end
+
+  def convert_line(line) do
+    10 * first_digit(line) + last_digit(line)
+  end
+
+  for digit <- 1..9 do
+    string = Integer.to_string(digit)
+    defp first_digit(<<unquote(string), _::binary>>), do: unquote(digit)
+    defp last_digit(<<unquote(string), _::binary>>), do: unquote(digit)
+  end
+
+  for {string, digit} <- @digits do
+    reverse_string = String.reverse(string)
+    defp first_digit(<<unquote(string), _::binary>>), do: unquote(digit)
+    defp last_digit(<<unquote(reverse_string), _::binary>>), do: unquote(digit)
+  end
+
+  defp first_digit(<<_::utf8, rest::binary>>), do: first_digit(rest)
+  defp last_digit(<<_::utf8, rest::binary>>), do: last_digit(rest)
+end
+
+input_field
+|> Kino.Input.read()
+|> Task2.solve()
+```
